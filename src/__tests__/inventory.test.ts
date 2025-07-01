@@ -1,33 +1,23 @@
-import { ApolloServer } from '@apollo/server';
-import { typeDefs, resolvers } from '../index';
+import { resolvers } from '../resolvers';
 
-describe('inventory query', () => {
-  it('returns the list of products with their inventory', async () => {
-    const testServer = new ApolloServer({
-      typeDefs,
-      resolvers,
-    });
+describe('Query.inventory', () => {
+  it('returns the list of products with their inventory, image, and price', () => {
+    const products = resolvers.Query.inventory();
+    expect(products).toEqual([
+      { id: '1', name: 'Ceramic Mug', inventory: 10, image: 'https://placehold.co/600x400', price: 25 },
+      { id: '2', name: 'Ceramic Bowl', inventory: 5, image: 'https://placehold.co/600x400', price: 35 },
+      { id: '3', name: 'Ceramic Plate', inventory: 0, image: 'https://placehold.co/600x400', price: 45 },
+    ]);
+  });
+});
 
-    const response = await testServer.executeOperation({
-      query: `
-        query GetInventory {
-          inventory {
-            id
-            name
-            inventory
-          }
-        }
-      `,
-    });
-
-    expect(response.body.kind).toBe('single');
-    if (response.body.kind === 'single') {
-      expect(response.body.singleResult.errors).toBeUndefined();
-      expect(response.body.singleResult.data?.inventory).toEqual([
-        { id: '1', name: 'Ceramic Mug', inventory: 10 },
-        { id: '2', name: 'Ceramic Bowl', inventory: 5 },
-        { id: '3', name: 'Ceramic Plate', inventory: 0 },
-      ]);
-    }
+describe('Query.productsByIds', () => {
+  it('returns products filtered by their IDs', () => {
+    const idsToFetch = ['1', '3'];
+    const filteredProducts = resolvers.Query.productsByIds(null, { ids: idsToFetch });
+    expect(filteredProducts).toEqual([
+      { id: '1', name: 'Ceramic Mug', inventory: 10, image: 'https://placehold.co/600x400', price: 25 },
+      { id: '3', name: 'Ceramic Plate', inventory: 0, image: 'https://placehold.co/600x400', price: 45 },
+    ]);
   });
 });

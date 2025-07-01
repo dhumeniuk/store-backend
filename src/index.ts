@@ -8,30 +8,8 @@ import cors from 'cors';
 // A schema is a collection of type definitions (hence "typeDefs")
 // that together define the "shape" of queries that are executed against
 // your data.
-export const typeDefs = `#graphql
-  type Product {
-    id: ID!
-    name: String!
-    inventory: Int!
-  }
-
-  type Query {
-    inventory: [Product]
-  }
-`;
-
-const products = [
-  { id: '1', name: 'Ceramic Mug', inventory: 10 },
-  { id: '2', name: 'Ceramic Bowl', inventory: 5 },
-  { id: '3', name: 'Ceramic Plate', inventory: 0 },
-];
-
-// Resolvers define how to fetch the types defined in your schema.
-export const resolvers = {
-  Query: {
-    inventory: () => products,
-  },
-};
+import { typeDefs } from './schema';
+import { resolvers } from './resolvers';
 
 interface MyContext {
   token?: String;
