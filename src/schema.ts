@@ -11,4 +11,18 @@ export const typeDefs = `#graphql
     inventory: [Product]
     productsByIds(ids: [ID!]!): [Product]
   }
+
+  input ItemInput {
+    id: ID!
+    quantity: Int!
+  }
+
+  type Mutation {
+    createPaymentIntent(items: [ItemInput!]!, shipping: String!): PaymentIntent
+  }
+
+  type PaymentIntent {
+    id: ID!
+    clientSecret: String!
+  }
 `;
