@@ -1,31 +1,49 @@
 import Stripe from 'stripe';
+import { Database } from 'sqlite';
+import dotenv from 'dotenv';
 
-const stripe = new Stripe('sk_test_YOUR_STRIPE_SECRET_KEY', { // Replace with your actual Stripe secret key
-  apiVersion: '2025-05-28.basil',
+dotenv.config();
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  
 });
 
-const products = [
-  { id: '1', name: 'Ceramic Mug', inventory: 10, image: 'https://placehold.co/600x400', price: 25 },
-  { id: '2', name: 'Ceramic Bowl', inventory: 5, image: 'https://placehold.co/600x400', price: 35 },
-  { id: '3', name: 'Ceramic Plate', inventory: 0, image: 'https://placehold.co/600x400', price: 45 },
-];
+interface Product {
+  id: string;
+  name: string;
+  inventory: number;
+  image: string;
+  price: number;
+}
 
 export const resolvers = {
   Query: {
-    inventory: () => products,
-    productsByIds: (parent: any, { ids }: { ids: string[] }) => {
-      return products.filter((product) => ids.includes(product.id));
+    inventory: async (parent: any, args: any, context: { db: Database }) => {
+      return await context.db.all<Product[]>('SELECT * FROM products');
+    },
+    productsByIds: async (parent: any, { ids }: { ids: string[] }, context: { db: Database }) => {
+      const placeholders = ids.map(() => '?').join(',');
+      return await context.db.all<Product[]>(`SELECT * FROM products WHERE id IN (${placeholders})`, ...ids);
     },
   },
   Mutation: {
-    createPaymentIntent: async (parent: any, { items, shipping }: { items: { id: string, quantity: number }[], shipping: string }) => {
+    createPaymentIntent: async (parent: any, { items, shipping }: { items: { id: string, quantity: number }[], shipping: string }, context: { db: Database }) => {
       let subtotal = 0;
+      const productUpdates = [];
+
       for (const item of items) {
-        const product = products.find(p => p.id === item.id);
+        const product = await context.db.get<Product>('SELECT * FROM products WHERE id = ?', item.id);
         if (product) {
+          if (product.inventory < item.quantity) {
+            throw new Error(`Not enough ${product.name} in stock.`);
+          }
           subtotal += product.price * item.quantity;
+          productUpdates.push({ id: item.id, newInventory: product.inventory - item.quantity });
+        } else {
+          throw new Error(`Product with ID ${item.id} not found.`);
         }
       }
+
       const shippingFee = shipping === 'delivery' ? 20 : 0;
       const totalAmount = subtotal + shippingFee;
 
@@ -34,6 +52,12 @@ export const resolvers = {
           amount: totalAmount * 100, // Stripe expects amount in cents
           currency: 'usd',
         });
+
+        // Decrement inventory only after successful payment intent creation
+        for (const update of productUpdates) {
+          await context.db.run('UPDATE products SET inventory = ? WHERE id = ?', update.newInventory, update.id);
+        }
+
         return { clientSecret: paymentIntent.client_secret, id: paymentIntent.id };
       } catch (error: any) {
         console.error("Error creating payment intent:", error);

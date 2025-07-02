@@ -10,14 +10,20 @@ import cors from 'cors';
 // your data.
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
+import { initializeDatabase } from './database';
+
+import { Database } from 'sqlite';
 
 interface MyContext {
-  token?: String;
+  token?: string | string[];
+  db: Database;
 }
 
 async function startApolloServer() {
   const app = express();
   const httpServer = http.createServer(app);
+
+  const db = await initializeDatabase(); // Initialize the database
 
   const server = new ApolloServer<MyContext>({
     typeDefs,
@@ -32,7 +38,10 @@ async function startApolloServer() {
     cors<cors.CorsRequest>(),
     express.json(),
     expressMiddleware(server, {
-      context: async ({ req }) => ({ token: req.headers.token }),
+      context: async ({ req }) => ({
+        token: req.headers.token,
+        db, // Pass the db instance to the context
+      }),
     }),
   );
 
